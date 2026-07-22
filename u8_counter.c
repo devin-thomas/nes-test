@@ -52,8 +52,8 @@ static const u8 digit_rows[50] = {
 };
 
 /*
- * The square is nine 8x8 blocks arranged in a 3x3 grid.
- * Coordinates are in units of eight pixels around its center.
+ * The square is nine overlapping 8x8 blocks arranged in a 3x3 grid.
+ * Coordinates are abstract units around its center.
  */
 static const sbyte square_x_units[SQUARE_BLOCKS] = {
     -1, 0, 1,
@@ -72,8 +72,8 @@ static const sbyte square_cos16[10] = {16,16,15,14,12,10,8,5,3,0};
 static const sbyte square_sin16[10] = { 0, 3, 5, 8,10,12,14,15,16,16};
 
 /*
- * The triangle is nine 8x8 blocks: one on top, three in the middle,
- * and five on the bottom. Coordinates are in units of eight pixels.
+ * The triangle is nine overlapping 8x8 blocks: one on top, three in the
+ * middle, and five on the bottom.
  */
 static const sbyte triangle_x_units[TRIANGLE_BLOCKS] = {
      0,
@@ -107,14 +107,31 @@ static sbyte times_unit(sbyte value, sbyte unit) {
     }
 }
 
-/* Divide a small signed value by two, rounding away from zero. */
-static sbyte half_round(sbyte value) {
+/*
+ * Compress the square's rotated center spacing from eight pixels to six.
+ * The 8x8 sprites therefore overlap by two pixels and cannot expose holes.
+ */
+static sbyte square_overlap_scale(sbyte value) {
+    unsigned char magnitude;
+
     if (value < 0) {
-        value = -value;
-        return -((value + 1) >> 1);
+        magnitude = (unsigned char)(-value);
+        return -((magnitude * 3 + 4) >> 3);
     }
 
-    return (value + 1) >> 1;
+    return (value * 3 + 4) >> 3;
+}
+
+/* Apply the same six-pixel spacing to the triangle's lookup-table values. */
+static sbyte triangle_overlap_scale(sbyte value) {
+    unsigned char magnitude;
+
+    if (value < 0) {
+        magnitude = (unsigned char)(-value);
+        return -((magnitude * 3 + 2) >> 2);
+    }
+
+    return (value * 3 + 2) >> 2;
 }
 
 static void clear_number_tiles(void) {
@@ -191,7 +208,7 @@ static void queue_number_update(void) {
     }
 }
 
-/* Draw the square at 0,10,...,90 degrees using nine solid sprites. */
+/* Draw the square at 0,10,...,90 degrees using overlapping solid sprites. */
 static u8 draw_square(u8 sprite_id) {
     u8 i;
     sbyte cosine;
@@ -210,8 +227,8 @@ static u8 draw_square(u8 sprite_id) {
         y_term = times_unit(sine, square_x_units[i])
                + times_unit(cosine, square_y_units[i]);
 
-        x_offset = half_round(x_term);
-        y_offset = half_round(y_term);
+        x_offset = square_overlap_scale(x_term);
+        y_offset = square_overlap_scale(y_term);
 
         sprite_id = oam_spr(
             SQUARE_CENTER_X + x_offset - 4,
@@ -225,11 +242,13 @@ static u8 draw_square(u8 sprite_id) {
     return sprite_id;
 }
 
-/* Draw the triangle at one of twelve 30-degree orientations. */
+/* Draw the triangle at one of twelve solid, overlapping orientations. */
 static u8 draw_triangle(u8 sprite_id) {
     u8 i;
     sbyte cosine;
     sbyte sine;
+    sbyte x_term;
+    sbyte y_term;
     sbyte x_offset;
     sbyte y_offset;
 
@@ -237,10 +256,13 @@ static u8 draw_triangle(u8 sprite_id) {
     sine = triangle_sin8[triangle_angle];
 
     for (i = 0; i < TRIANGLE_BLOCKS; ++i) {
-        x_offset = times_unit(cosine, triangle_x_units[i])
-                 - times_unit(sine, triangle_y_units[i]);
-        y_offset = times_unit(sine, triangle_x_units[i])
-                 + times_unit(cosine, triangle_y_units[i]);
+        x_term = times_unit(cosine, triangle_x_units[i])
+               - times_unit(sine, triangle_y_units[i]);
+        y_term = times_unit(sine, triangle_x_units[i])
+               + times_unit(cosine, triangle_y_units[i]);
+
+        x_offset = triangle_overlap_scale(x_term);
+        y_offset = triangle_overlap_scale(y_term);
 
         sprite_id = oam_spr(
             TRIANGLE_CENTER_X + x_offset - 4,
