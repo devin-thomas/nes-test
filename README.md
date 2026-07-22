@@ -5,7 +5,9 @@
 A deliberately tiny NES program:
 
 - Constant sky-blue background
-- White unsigned 8-bit decimal counter
+- Large black block-digit counter centered on screen
+- Black square on the left
+- Black triangle at the top center
 - Starts at `0`
 - Each new press of NES **A** increments once
 - `255 + 1` wraps to `0`
@@ -23,8 +25,10 @@ vrambuf.c
 ```
 
 The NES platform in 8bitworkshop supplies `neslib.h` and `chr_generic.s`.
-This repository includes the VRAM-buffer header and implementation that
-the counter source explicitly depends on.
+The program reuses the blank and solid tiles already present in
+`chr_generic.s`, so no additional graphics file is required. This repository
+includes the VRAM-buffer header and implementation that the counter source
+explicitly depends on.
 
 The `platform=nes` and `file=u8_counter.c` values in the link above tell
 8bitworkshop which platform and main file to load instead of falling back
